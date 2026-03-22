@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audiometrie a Měření Hluku: Interaktivní Průvodce</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+.chart-container {
+    position: relative;
+    width: 100%;
+    max-width: 800px;
+    margin-left: auto;
+    margin-right: auto;
+    height: 60vh;
+    max-height: 500px;
+}
+body {
+    background-color: #fafaf9;
+    color: #292524;
+    font-family: system-ui, -apple-system, sans-serif;
+}
+.smooth-scroll {
+    scroll-behavior: smooth;
+}
+.glass-panel {
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(10px);
+}
+</style>
+</head>
+<body class="smooth-scroll">
+
+<!-- Chosen Palette: Warm Neutrals with Amber and Emerald accents (Stone-50 background, Stone-800 text, Amber-600 for highlights, Emerald-600 for correct/key answers) -->
+
+<!-- Application Structure Plan: The SPA is divided into 4 main thematic sections accessed via a sticky top navigation. 1. "Pojmy" uses interactive flashcards for quick memorization of physical terms. 2. "Principy & Metodika" uses a tabbed interface to separate conduction paths, hearing loss types, and masking to prevent information overload. 3. "Audiogram" features a dynamic Chart.js visualization to practically demonstrate what the text describes (0 dB HL, frequency log scale, reversed Y-axis). 4. "Zkouška (FAQ)" uses an accordion layout to hide/reveal the exact answers required by the teacher, simulating a flashcard/testing experience. This structure transforms static study notes into an active learning tool. -->
+
+<!-- Visualization & Content Choices: 
+- Physical terms -> Inform -> Interactive Flashcards -> Click to flip/reveal -> Encourages active recall -> Vanilla JS.
+- Principles -> Organize -> Tabbed Panels -> Click tab -> Reduces cognitive load, groups related concepts -> Vanilla JS.
+- Audiogram -> Inform/Compare -> Line Chart -> Hover for tooltips -> Visually explains the reversed Y-axis and 0 dB HL baseline which is hard to grasp from text alone -> Chart.js.
+- FAQ -> Inform/Engage -> Accordion List -> Click to reveal -> Simulates the teacher's questions and tests the user's readiness -> Vanilla JS.
+- Confirming NO SVG/Mermaid used. -->
+
+<!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+<nav class="fixed top-0 w-full glass-panel border-b border-stone-200 z-50">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex justify-between h-16">
+            <div class="flex items-center">
+                <span class="text-xl font-bold text-amber-700">AudioPrep</span>
+            </div>
+            <div class="flex items-center space-x-4 overflow-x-auto">
+                <a href="#pojmy" class="text-stone-600 hover:text-amber-600 px-3 py-2 rounded-md text-sm font-medium whitespace-nowrap">1. Pojmy</a>
+                <a href="#principy" class="text-stone-600 hover:text-amber-600 px-3 py-2 rounded-md text-sm font-medium whitespace-nowrap">2. Principy</a>
+                <a href="#audiogram" class="text-stone-600 hover:text-amber-600 px-3 py-2 rounded-md text-sm font-medium whitespace-nowrap">3. Audiogram</a>
+                <a href="#hluk" class="text-stone-600 hover:text-amber-600 px-3 py-2 rounded-md text-sm font-medium whitespace-nowrap">4. Měření hluku</a>
+                <a href="#faq" class="bg-amber-100 text-amber-800 hover:bg-amber-200 px-3 py-2 rounded-md text-sm font-medium whitespace-nowrap">5. FAQ Zkouška</a>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<header class="pt-32 pb-16 px-4 text-center max-w-4xl mx-auto">
+    <h1 class="text-4xl sm:text-5xl font-extrabold text-stone-900 tracking-tight mb-4">Komplexní příprava: Audiometrie</h1>
+    <p class="text-lg sm:text-xl text-stone-600">Interaktivní průvodce protokolem. Naučte se přesné definice, fyzikální principy a získejte jistotu pro obhajobu před vyučujícím.</p>
+</header>
+
+<main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pb-24 space-y-32">
+
+    <section id="pojmy" class="scroll-mt-24">
+        <div class="mb-8">
+            <h2 class="text-3xl font-bold text-stone-800">1. Základní fyzikální pojmy</h2>
+            <p class="mt-2 text-stone-600">Kliknutím na kartu odhalíte přesnou definici. Učte se je nazpaměť pro bezchybnou obhajobu.</p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="flashcards-container">
+        </div>
+    </section>
+
+    <section id="principy" class="scroll-mt-24">
+        <div class="mb-8">
+            <h2 class="text-3xl font-bold text-stone-800">2. Principy Audiometrie</h2>
+            <p class="mt-2 text-stone-600">Prozkoumejte cesty vedení zvuku, typy nedoslýchavosti a důvod provádění maskování.</p>
+        </div>
+        
+        <div class="bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden">
+            <div class="flex flex-col sm:flex-row border-b border-stone-200 bg-stone-50" id="tabs-container">
+                <button class="tab-btn flex-1 py-4 px-6 text-center font-semibold text-amber-700 border-b-2 border-amber-600 bg-white" data-target="tab-vedeni">Cesty vedení</button>
+                <button class="tab-btn flex-1 py-4 px-6 text-center font-medium text-stone-500 hover:text-stone-700" data-target="tab-poruchy">Typy poruch</button>
+                <button class="tab-btn flex-1 py-4 px-6 text-center font-medium text-stone-500 hover:text-stone-700" data-target="tab-maskovani">Maskování</button>
+            </div>
+            <div class="p-6 sm:p-10">
+                <div id="tab-vedeni" class="tab-content block">
+                    <h3 class="text-xl font-bold mb-4 text-stone-800">Vzdušné vs. Kostní vedení</h3>
+                    <div class="grid sm:grid-cols-2 gap-8">
+                        <div class="bg-stone-50 p-6 rounded-xl">
+                            <h4 class="font-bold text-lg text-amber-700 mb-2">Vzdušné vedení (AC)</h4>
+                            <p class="text-stone-600 mb-4">Zvuk jde přes sluchátka.</p>
+                            <div class="text-sm font-mono bg-white p-3 rounded border border-stone-200 text-stone-700">
+                                Ušní boltec &rarr; Zevní zvukovod &rarr; Bubínek &rarr; Sluchové kůstky &rarr; Oválné okénko &rarr; Tekutina ve vnitřním uchu &rarr; Hlemýžď &rarr; Sluchový nerv &rarr; Mozek
+                            </div>
+                        </div>
+                        <div class="bg-stone-50 p-6 rounded-xl">
+                            <h4 class="font-bold text-lg text-amber-700 mb-2">Kostní vedení (BC)</h4>
+                            <p class="text-stone-600 mb-4">Zvuk jde přes kostní vibrátor přiložený na processus mastoideus.</p>
+                            <div class="text-sm font-mono bg-white p-3 rounded border border-stone-200 text-stone-700">
+                                Zvukové vlnění rozkmitá přímo kosti lebky a přenáší se rovnou do vnitřního ucha (hlemýždě).<br><br><span class="text-amber-600 font-bold">OBÍHÁ zevní a střední ucho.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-poruchy" class="tab-content hidden">
+                    <h3 class="text-xl font-bold mb-4 text-stone-800">Klíčové pro pochopení: Typy nedoslýchavosti</h3>
+                    <div class="space-y-4">
+                        <div class="border-l-4 border-amber-500 pl-4 py-2">
+                            <h4 class="font-bold text-lg text-stone-800">Převodní porucha</h4>
+                            <p class="text-stone-600">Narušena cesta zvuku v zevním nebo středním uchu (např. mazová zátka, zánět, otoskleróza). Kostní vedení bývá v normě, vzdušné je zhoršené.</p>
+                        </div>
+                        <div class="border-l-4 border-stone-400 pl-4 py-2">
+                            <h4 class="font-bold text-lg text-stone-800">Percepční (senzorineurální) porucha</h4>
+                            <p class="text-stone-600">Narušeno vnitřní ucho (hlemýžď) nebo sluchový nerv (např. poškození hlukem, stářím). Kostní i vzdušné vedení jsou zhoršena stejně.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-maskovani" class="tab-content hidden">
+                    <h3 class="text-xl font-bold mb-4 text-stone-800">Úkol č. 2: Maskování</h3>
+                    <div class="bg-emerald-50 text-emerald-900 p-6 rounded-xl border border-emerald-100">
+                        <p class="font-bold mb-2">Proč se dělá?</p>
+                        <p class="mb-4">Když vyšetřujeme ucho, které slyší mnohem hůře než to druhé, může se stát, že silný tón určený pro špatné ucho se přenese kostí lebky do lepšího ucha. Pacient pak zmáčkne tlačítko, ale ve skutečnosti to slyšel tím ZDRAVÝM uchem. Tomuto jevu se říká <strong>PŘESLECH</strong>.</p>
+                        <p class="font-bold mb-2">Řešení:</p>
+                        <p>Do nevyšetřovaného (lepšího) ucha pouštíme šum (v protokolu 40 dB), který ho "zaměstná" (zamaskuje ho), a my tak zjistíme skutečný práh zkoumaného hůře slyšícího ucha.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="audiogram" class="scroll-mt-24">
+        <div class="mb-8">
+            <h2 class="text-3xl font-bold text-stone-800">3. Postup měření a Audiogram</h2>
+            <p class="mt-2 text-stone-600">Vzestupná metoda a vizualizace výsledků na audiogramu s invertovanou osou Y.</p>
+        </div>
+
+        <div class="grid lg:grid-cols-3 gap-8 items-start">
+            <div class="lg:col-span-1 space-y-6">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-stone-200">
+                    <h3 class="text-xl font-bold text-stone-800 mb-4">Vzestupná metoda (AC)</h3>
+                    <ol class="list-decimal list-inside space-y-3 text-stone-700">
+                        <li>Začátek na 1000 Hz, tón 30 dB.</li>
+                        <li>Slyší-li, <strong>snížíme</strong> o 20 dB.</li>
+                        <li>Neslyší-li, <strong>zvyšujeme</strong> po 5 dB, dokud neuslyší.</li>
+                        <li>Potvrzení prahu: nejnižší intenzita slyšená alespoň v 50 % případů (opakováno 2x).</li>
+                    </ol>
+                </div>
+                <div class="bg-amber-50 p-6 rounded-2xl border border-amber-100 text-amber-900">
+                    <h4 class="font-bold mb-2">Co znamená 0 dB v audiogramu?</h4>
+                    <p class="text-sm">Není to absolutní ticho. 0 dB HL je statisticky průměrný práh slyšení mladého zdravého člověka. Normální výsledky jsou často v rozmezí -10 až +15 dB.</p>
+                </div>
+            </div>
+
+            <div class="lg:col-span-2 bg-white p-4 sm:p-6 rounded-2xl shadow-sm border border-stone-200">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-bold text-stone-800">Ukázka Audiogramu</h3>
+                    <div class="flex space-x-4 text-sm">
+                        <span class="flex items-center"><span class="w-3 h-3 rounded-full bg-red-500 mr-2"></span>Pravé (O)</span>
+                        <span class="flex items-center"><span class="w-3 h-3 rounded-full bg-blue-500 mr-2"></span>Levé (X)</span>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="audiogramChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="hluk" class="scroll-mt-24">
+        <div class="mb-8">
+            <h2 class="text-3xl font-bold text-stone-800">4. Měření hluku (Hlukoměr)</h2>
+            <p class="mt-2 text-stone-600">Pochopení váhových filtrů je extrémně důležité pro obhajobu.</p>
+        </div>
+
+        <div class="bg-stone-800 text-stone-100 rounded-2xl overflow-hidden shadow-lg">
+            <div class="p-6 sm:p-8">
+                <p class="mb-6 text-stone-300">Hlukoměr reaguje na změny akustického tlaku. Aby měřil hluk tak, jak ho vnímá člověk, používají se <strong class="text-white">váhové filtry (korekční křivky)</strong>.</p>
+                
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div class="bg-stone-700/50 p-6 rounded-xl border border-stone-600 hover:border-amber-500 transition-colors cursor-pointer" id="card-dba">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-2xl font-bold text-amber-400">Křivka A (dBA)</h3>
+                            <span class="text-3xl">👂</span>
+                        </div>
+                        <ul class="space-y-2 text-stone-300">
+                            <li>• Aproximuje charakteristiku lidského ucha.</li>
+                            <li>• Fyzikálně "ořezává" hluboké a velmi vysoké tóny.</li>
+                            <li>• Používá se pro běžné prostředí.</li>
+                            <li>• <strong class="text-white">Hygienické limity jsou vždy v dBA!</strong></li>
+                        </ul>
+                    </div>
+
+                    <div class="bg-stone-700/50 p-6 rounded-xl border border-stone-600 hover:border-blue-400 transition-colors cursor-pointer" id="card-dbc">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-2xl font-bold text-blue-400">Křivka C (dBC)</h3>
+                            <span class="text-3xl">🏭</span>
+                        </div>
+                        <ul class="space-y-2 text-stone-300">
+                            <li>• Téměř lineární křivka.</li>
+                            <li>• Nepotlačuje basy (hluboké tóny).</li>
+                            <li>• Fyzikální intenzita bez frekvenční závislosti.</li>
+                            <li>• Měření nárazového/silného hluku v průmyslu.</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="mt-6 p-4 bg-stone-900 rounded-lg text-sm text-stone-400">
+                    <strong class="text-stone-200">Ekvivalentní hladina akustického tlaku (A):</strong> Hladina plynulého (konstantního) hluku, který by měl za danou dobu stejnou akustickou energii jako daný kolísavý hluk.
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="faq" class="scroll-mt-24">
+        <div class="mb-8">
+            <h2 class="text-3xl font-bold text-stone-800">5. Zkouška: Ideální odpovědi</h2>
+            <p class="mt-2 text-stone-600">Tyto otázky a přesné formulace odpovědí jsou připraveny speciálně pro přísné hodnocení. Kliknutím rozbalte odpověď.</p>
+        </div>
+
+        <div class="space-y-4" id="faq-container">
+        </div>
+    </section>
+
+</main>
+
+<footer class="bg-stone-900 text-stone-400 py-8 text-center">
+    <p>Navrženo pro excelentní zvládnutí protokolu & obhajoby.</p>
+</footer>
+
+<script>
+const flashcardsData = [
+    {
+        title: "ZVUK",
+        text: "Mechanické podélné vlnění pružného prostředí. Lidské ucho vnímá frekvence 16 Hz až 20 000 Hz. Zvuky pod 16 Hz jsou infrazvuk, nad 20 000 Hz ultrazvuk."
+    },
+    {
+        title: "FREKVENCE (f)",
+        text: "Určuje VÝŠKU tónu. Jednotkou je Hertz (Hz). V audiometrii se běžně vyšetřuje rozsah 125 Hz až 8000 Hz v oktávových skocích."
+    },
+    {
+        title: "INTENZITA ZVUKU (I)",
+        text: "Fyzikální veličina. Množství zvukové energie, které projde jednotkovou plochou za jednotku času. Jednotka: W/m². Prahová intenzita (při 1000 Hz) je I₀ = 10⁻¹² W/m²."
+    },
+    {
+        title: "HLADINA INTENZITY ZVUKU (L)",
+        text: "Používá logaritmickou stupnici. Vzorec: L = 10 * log (I / I₀). Jednotkou je decibel (dB)."
+    },
+    {
+        title: "AKUSTICKÝ TLAK (p)",
+        text: "Změny tlaku vzduchu způsobené zvukovým vlněním. Prahový akustický tlak (1000 Hz) p₀ = 2 * 10⁻⁵ Pa. Hladina: L_p = 20 * log (p / p₀)."
+    },
+    {
+        title: "HLASITOST A HLADINA HLASITOSTI",
+        text: "Hlasitost je SUBJEKTIVNÍ pocitek. Ucho není stejně citlivé na všechny frekvence. Hladina hlasitosti má jednotku FON (Ph). 1 Fon = 1 dB PŘI 1000 Hz. Křivky stejné hlasitosti = IZOFONY."
+    }
+];
+
+const faqData = [
+    {
+        q: "Co přesně ukazuje nula na audiogramu? Proč máte některé hodnoty do mínusu, to jako slyšíte ticho?",
+        a: "Nula decibelů v audiogramu (dB HL) není fyzikální nula (absolutní ticho), ale biologická nula. Představuje fyziologický práh sluchu získaný statistickým průměrem u zdravé populace mladých lidí pro danou frekvenci. Záporné hodnoty (např. -10 dB) tudíž znamenají, že vyšetřovaný má sluch o 10 decibelů lepší, než je tento statistický průměr."
+    },
+    {
+        q: "Jaký je fyzikální rozdíl mezi hladinou intenzity zvuku a hladinou hlasitosti?",
+        a: "Hladina intenzity zvuku je objektivní fyzikální veličina, úměra logaritmu poměru měřené intenzity a prahové intenzity, měří se v decibelech. Hladina hlasitosti je naproti tomu psychoakustická (subjektivní) veličina respektující frekvenční citlivost lidského ucha. Měří se ve fonech, přičemž platí, že 1 fon je roven 1 decibelu POUZE a výhradně při referenční frekvenci 1000 Hz."
+    },
+    {
+        q: "Vysvětlete mi princip maskování. Proč maskujeme o těch 40 decibelů?",
+        a: "Maskování se provádí pro vyloučení přeslechu. Při vyšetřování vzduchového nebo kostního vedení ucha se může stát, že se akustická energie přenese kraniokaudálně (lebkou) k protilehlému lépe slyšícímu uchu. Pacient by tak signalizoval slyšení, i když testované ucho nereagovalo. Proto do netestovaného lepšího ucha přivedeme úzkopásmový šum o intenzitě například 40 dB, který překryje - zamaskuje - případný přeslyšený tón."
+    },
+    {
+        q: "Jaká je nevýhoda této metody?",
+        a: "Jedná se o subjektivní metodu. Její výsledek absolutně závislý na vědomí, pozornosti a ochotě pacienta spolupracovat. Nemůže být použita u malých dětí, komatózních pacientů nebo u lidí předstírajících hluchotu (agravace/simulace)."
+    },
+    {
+        q: "Proč v protokolu u hlukoměru vyšly u stejných zvuků hodnoty v dBC často vyšší než v dBA?",
+        a: "Protože filtr A napodobuje citlivost lidského ucha a potlačuje nízké a velmi vysoké frekvence zvuku. Zatímco filtr C je lineární a propouští celé akustické spektrum včetně hlubokých basových složek. V reálném zvuku pozadí byly obsaženy hluboké frekvence, které dBC započítalo plně, zatímco dBA je zredukovalo."
+    },
+    {
+        q: "Jaký vliv má frekvence na vnímání hlasitosti tónu o stejné fyzikální intenzitě?",
+        a: "Podle Weber-Fechnerova zákona a křivek stejné hlasitosti (izofon) je lidské ucho nejcitlivější v oblasti frekvencí lidské řeči (zhruba 1 až 4 kilohertze). Tón o frekvenci 1000 Hz a intenzitě 40 dB budeme vnímat jako mnohem hlasitější než tón o frekvenci 100 Hz se stejnou fyzikální intenzitou 40 dB."
+    }
+];
+
+function initFlashcards() {
+    const container = document.getElementById('flashcards-container');
+    flashcardsData.forEach(card => {
+        const cardEl = document.createElement('div');
+        cardEl.className = 'bg-white rounded-xl p-6 shadow-sm border border-stone-200 cursor-pointer hover:shadow-md transition-shadow group relative overflow-hidden h-48 flex flex-col justify-center';
+        
+        const front = document.createElement('div');
+        front.className = 'text-center font-bold text-xl text-stone-800 group-hover:text-amber-700 transition-colors absolute inset-0 p-6 flex items-center justify-center bg-white z-10';
+        front.innerHTML = card.title + '<br><span class="text-sm font-normal text-stone-400 mt-2 block">Klikněte pro definici</span>';
+
+        const back = document.createElement('div');
+        back.className = 'text-stone-700 text-sm opacity-0 group-[.flipped]:opacity-100 group-[.flipped]:z-20 transition-opacity absolute inset-0 p-6 flex items-center justify-center bg-amber-50';
+        back.innerHTML = card.text;
+
+        cardEl.appendChild(front);
+        cardEl.appendChild(back);
+
+        cardEl.addEventListener('click', () => {
+            cardEl.classList.toggle('flipped');
+            if(cardEl.classList.contains('flipped')) {
+                front.style.opacity = '0';
+                front.style.zIndex = '0';
+            } else {
+                front.style.opacity = '1';
+                front.style.zIndex = '10';
+            }
+        });
+
+        container.appendChild(cardEl);
+    });
+}
+
+function initTabs() {
+    const buttons = document.querySelectorAll('.tab-btn');
+    const contents = document.querySelectorAll('.tab-content');
+
+    buttons.forEach(btn => {
+        btn.addEventListener('click', () => {
+            buttons.forEach(b => {
+                b.classList.remove('text-amber-700', 'border-b-2', 'border-amber-600', 'bg-white');
+                b.classList.add('text-stone-500');
+            });
+            btn.classList.add('text-amber-700', 'border-b-2', 'border-amber-600', 'bg-white');
+            btn.classList.remove('text-stone-500');
+
+            contents.forEach(c => {
+                c.classList.remove('block');
+                c.classList.add('hidden');
+            });
+            document.getElementById(btn.dataset.target).classList.remove('hidden');
+            document.getElementById(btn.dataset.target).classList.add('block');
+        });
+    });
+}
+
+function initFAQs() {
+    const container = document.getElementById('faq-container');
+    faqData.forEach((faq, index) => {
+        const item = document.createElement('div');
+        item.className = 'bg-white rounded-xl border border-stone-200 overflow-hidden shadow-sm';
+        
+        const btn = document.createElement('button');
+        btn.className = 'w-full text-left px-6 py-4 font-semibold text-stone-800 hover:bg-stone-50 focus:outline-none flex justify-between items-center';
+        btn.innerHTML = `<span>${faq.q}</span><span class="text-amber-600 transform transition-transform" id="icon-${index}">+</span>`;
+        
+        const content = document.createElement('div');
+        content.className = 'px-6 pb-4 pt-2 hidden bg-stone-50 text-stone-700 border-t border-stone-100';
+        content.innerHTML = `<div class="pl-4 border-l-4 border-emerald-500 font-medium">${faq.a}</div>`;
+
+        btn.addEventListener('click', () => {
+            const isHidden = content.classList.contains('hidden');
+            content.classList.toggle('hidden');
+            document.getElementById(`icon-${index}`).textContent = isHidden ? '−' : '+';
+            document.getElementById(`icon-${index}`).style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+        });
+
+        item.appendChild(btn);
+        item.appendChild(content);
+        container.appendChild(item);
+    });
+}
+
+function initChart() {
+    const ctx = document.getElementById('audiogramChart').getContext('2d');
+    
+    const labels = ['125', '250', '500', '1000', '2000', '4000', '8000'];
+    const normalData = [10, 5, 0, 5, -5, 0, 5];
+    const lossData = [20, 25, 30, 45, 60, 75, 80];
+
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Normální sluch (Pravé)',
+                    data: normalData,
+                    borderColor: '#ef4444',
+                    backgroundColor: '#ef4444',
+                    borderWidth: 2,
+                    pointStyle: 'circle',
+                    pointRadius: 6,
+                    tension: 0.1
+                },
+                {
+                    label: 'Percepční porucha (Levé)',
+                    data: lossData,
+                    borderColor: '#3b82f6',
+                    backgroundColor: '#3b82f6',
+                    borderWidth: 2,
+                    pointStyle: 'crossRot',
+                    pointRadius: 8,
+                    borderDash: [5, 5],
+                    tension: 0.1
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Frekvence (Hz)'
+                    },
+                    grid: {
+                        color: '#e7e5e4'
+                    }
+                },
+                y: {
+                    reverse: true,
+                    min: -10,
+                    max: 120,
+                    ticks: {
+                        stepSize: 10
+                    },
+                    title: {
+                        display: true,
+                        text: 'Hladina sluchu (dB HL)'
+                    },
+                    grid: {
+                        color: (context) => {
+                            if (context.tick.value === 0) return '#78716c';
+                            return '#e7e5e4';
+                        },
+                        lineWidth: (context) => {
+                            if (context.tick.value === 0) return 2;
+                            return 1;
+                        }
+                    }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return context.dataset.label + ': ' + context.parsed.y + ' dB HL';
+                        }
+                    }
+                },
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    initFlashcards();
+    initTabs();
+    initFAQs();
+    initChart();
+});
+</script>
+</body>
+</html>
